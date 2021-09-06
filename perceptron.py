@@ -48,18 +48,32 @@ class NeuralNetwork:
     #     for i in range(0, len(self.layers)):
     #         if i != 0:
     #             self.layers[i].weights = np.dot(sigmoid(self.layers[i - 1].neurons).T, )
+
+        # w = np.ones(X.shape[1])
+        #     for _ in tqdm(range(self.n_iter), desc=house):
+        #         x = X.dot(w)
+        #         probability = self._sigmoid(x)
+        #         gradient = np.dot(X.T, (expected_y - probability))
+        #         w += self.eta * gradient
     def backpropagation(self, Y_train):
         error = self.gradient_error(Y_train)
+        Y_train = np.array([my_dict[value] for value in Y_train])
 
         for layer in range(len(self.layers) - 1, 0, -1):
-            slope = self.derivative_sigmoid(self.layers[layer].neurons)
-            d_layer = error * slope
+            # slope = self.derivative_sigmoid(self.layers[layer].neurons)
+            probability = self.sigmoid(self.layers[layer].neurons)
+            print(Y_train.shape)
+            print(probability.shape)
+            print(self.layers[layer-1].neurons.T.shape)
+            gradient = np.dot(self.layers[layer - 1].neurons, (Y_train - probability).T)
+            self.layers[layer].weights = self.layers[layer].weights + self.eta * gradient
+            # d_layer = error * slope
             # print("-------------------------------")
             # print(self.layers[layer].weights)
             # print(self.layers[layer - 1].neurons.T.shape)
             # print(d_layer.shape)
             # print(np.dot(d_layer, self.layers[layer - 1].neurons.T).shape)
-            self.layers[layer].weights = self.layers[layer].weights + np.dot(d_layer, self.layers[layer - 1].neurons.T) * self.eta
+            # self.layers[layer].weights = self.layers[layer].weights + np.dot(d_layer, self.layers[layer - 1].neurons.T) * self.eta
             # print("then, ",  self.layers[layer].weights)
             self.layers[layer].bias -= np.sum(d_layer, axis = 1) * self.eta
             error = np.dot(self.layers[layer].weights.T, d_layer)
