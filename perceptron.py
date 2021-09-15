@@ -18,8 +18,8 @@ class NeuralNetwork:
         self.phi = []
         self.mu = []
         self.eta = 0.01
-        self.epochs = 1000
-        self.mini_batch_size = 4
+        self.epochs = 10000
+        self.mini_batch_size = 20
       
     def add(self, layer):
         self.layers.append(layer)
@@ -36,32 +36,32 @@ class NeuralNetwork:
     
     def softmax(self, predicted):
         print("softmax")
-        # print(predicted)
-        # print(predicted[:, 0].shape)
-
-        # _max = np.max(predicted[:, 0])
-        # predicted[0, :] = predicted[:, 0] - _max
-        # predicted[:, 0] = predicted[:, 0].astype(float)
-
-        # _max = np.max(predicted[:, 1])
-        # predicted[:, 1] = predicted[:, 1] - _max
-        # predicted[:, 1] = predicted[:, 1].astype(float)
 
         ret = []
-        # ret = [np.exp(predicted[:, i]) / np.sum(np.exp(predicted[:, i])) for i in range(predicted.shape[1])]
+        print(predicted)
+        # print(np.sum(predicted))
+        # _sum = np.sum(predicted)
+        # predicted /= _sum
+        # _max = np.max(predicted[1, :])
+        # predicted[1, :] -= _max
+        # print(predicted)
         for i in range(predicted.shape[1]):
             # print(predicted[:, i])
-            _max = np.max(predicted[:, i])
-            predicted[:, i] -= _max
-            f = np.exp(predicted[:, i] - _max)
-            if np.sum(np.exp(predicted[:, i])) == "nan":
+            # _max = np.max(predicted[:, i])
+            # predicted[:, i] -= _max
+            # _max = np.max(predicted[0, :])
+            # print(_max)
+            print(predicted[:, i])
+            _sum = np.sum(predicted[:, i])
+            predicted[:, i] /= _sum
+            print(predicted[:, i])
+            f = np.exp(predicted[:, i])
+            # print(f)
+            if np.sum(f) == 0:
+                print("nan values")
                 exit 
-            print("i dont understand", np.sum(np.exp(predicted[:, i])))
+            # print("i dont understand", np.sum(np.exp(predicted[:, i])))
             ret.append(f / np.sum(f, axis=0))
-
-        # print("ret = ", ret)
-        # print(np.array(ret).T)
-        # print("######################")
         return np.array(ret).T
 
     def derivative_softmax(self,S):
@@ -95,7 +95,7 @@ class NeuralNetwork:
             if( layer != 0):
                 print(self.layers[layer].weights.shape)
                 print(self.layers[layer].bias.shape)
-                print(self.layers[layer].dot_value.shape)
+                # print(self.layers[layer].dot_value.shape)
 
     def compute_weight_derivative(self, neuron, Y, X):
         if neuron.neuron_output <= 0:
@@ -130,18 +130,11 @@ class NeuralNetwork:
         Y_train = np.expand_dims(Y_train, axis=0)
         # print("neurons = ", self.layers[0].neurons.T)
         n = self.layers[0].neurons.shape[1]
-        mini_batch_size = 4
-        # print(self.layers[0].neurons)
-        # print("iiiiiiiiiiiiiiiii")
-        # print(self.layers[0].neurons[1])
-        # print("ooooooooooooooo")
-        # print(self.layers[0].neurons[:][1])
-        # print("N ==== ", n)
-        # print("###############################################")
-        # self.print_shapes()
+        mini_batch_size = 20
         X_train = X_train.T
         X = X_train
         YY = Y_train
+        self.print_shapes()
         for epoch in range(self.epochs):
             print("EPOCH = ", epoch)
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -158,15 +151,18 @@ class NeuralNetwork:
                 for k in np.arange(0, n, mini_batch_size)]
             for mini_batch, Y in zip(mini_batches, Y_trains):
                 self.layers[0].neurons = mini_batch
-                if mini_batch.shape[1] == 3:
+                # see with end of batches
+                if mini_batch.shape[1] == 7:
                     break
                 for i, layer in enumerate(self.layers):
                     if (i != 0):
                         self.layers[i].nabla_b = [np.zeros(b.shape) for b in self.layers[i].bias]                #Initialize bias matrix with 0's
                         self.layers[i].nabla_w = [np.zeros(w.shape) for w in self.layers[i].weights]               #Initialize weights matrix with 0's
                         layer.dot_value = np.zeros([mini_batch_size,layer.weights.shape[0]])
-                        print("i ========",i)
+                        # print("i ========",i)
                         # print(layer.bias)
+                        # print(np.dot(layer.weights, self.layers[i - 1].neurons).shape)
+                        # self.print_shapes()
                         layer.dot_value = np.dot(layer.weights, self.layers[i - 1].neurons) + np.dot(np.array([layer.bias]).T, np.ones([1, mini_batch_size]))
                         layer.dot_value = layer.dot_value.astype(float)
                         if (i != 3):
@@ -175,12 +171,12 @@ class NeuralNetwork:
                             # print(layer.dot_value.shape)
                             layer.neurons = self.softmax(layer.dot_value)
                             # print(layer.neurons.shape)
-                        print(layer.neurons)
+                        # print(layer.neurons)
                 Y_output = []
                 # print(Y.shape)
                 # print(Y[0])
                 for z in range(Y.shape[1]):
-                    print(z)
+                    # print(z)
                     if Y[0][z] == 0:
                         b = 1
                     else:
