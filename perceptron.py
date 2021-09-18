@@ -106,7 +106,6 @@ class NeuralNetwork:
         print("neurons", self.layers[-1].neurons)
         print("Y_output = ", Y_output)
         print("error =", d_layer)
-        # print(".")
         # print(self.layers[-1].weights)
         # print("bias =", self.layers[-1].bias)
         print(self.layers[-1].weights.dtype)
