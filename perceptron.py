@@ -3,6 +3,7 @@ import pandas as pd
 import argparse
 import math
 import random
+from tqdm import tqdm
 my_dict = {'M': 1, "B": 0}
 
 
@@ -17,9 +18,9 @@ class NeuralNetwork:
         self.b = []
         self.phi = []
         self.mu = []
-        self.eta = 0.01
+        self.eta = 0.001
         self.epochs = 10000
-        self.mini_batch_size = 20
+        self.mini_batch_size = 40
       
     def add(self, layer):
         self.layers.append(layer)
@@ -29,64 +30,40 @@ class NeuralNetwork:
         for i in range(1, len(self.layers)):
             self.layers[i].weights = np.random.rand(self.layers[i].n_neurons, self.layers[i - 1].n_neurons)
             self.layers[i].bias = np.random.rand(self.layers[i].n_neurons)
+            # self.layers[i].bias = np.ones(self.layers[i].n_neurons)
+
                 # self.layers[i].bias = np.random.rand(self.layers[i].n_neurons)
 
     def relu(self, x):
         return (x > 0) * x
     
     def softmax(self, predicted):
-        print("softmax")
-
         ret = []
-        print(predicted)
-        # print(np.sum(predicted))
-        # _sum = np.sum(predicted)
-        # predicted /= _sum
-        # _max = np.max(predicted[1, :])
-        # predicted[1, :] -= _max
-        # print(predicted)
         for i in range(predicted.shape[1]):
-            # print(predicted[:, i])
-            # _max = np.max(predicted[:, i])
-            # predicted[:, i] -= _max
-            # _max = np.max(predicted[0, :])
-            # print(_max)
-            print(predicted[:, i])
-            _sum = np.sum(predicted[:, i])
-            predicted[:, i] /= _sum
-            print(predicted[:, i])
             f = np.exp(predicted[:, i])
-            # print(f)
             if np.sum(f) == 0:
-                print("nan values")
                 exit 
-            # print("i dont understand", np.sum(np.exp(predicted[:, i])))
-            ret.append(f / np.sum(f, axis=0))
+            ret.append(f / np.sum(f))
         return np.array(ret).T
 
     def derivative_softmax(self,S):
         # s[range(y.shape[0]), y] -= 1
-        return s * (1 - s)
+        # print("SSSSSSSSSSSSSSSSSS = " , S[0])
+        # S[1] = S[1] * (1 - S[1])
+        # S[0] = -S[0] * S[1] 
+        return S * (1 - S)
 
     def derivative_relu(self, x):
         return (x >  0) * 1
     
     def sigmoid(self, X):
         z=np.array(X,dtype=np.float32)
+        # print(z)
         return 1 / (1 + np.exp(-z))
 
     def derivative_sigmoid(self, X):
         s = self.sigmoid(X)
         return s*(1-s)
-
-    def mean_square_error(self, predicted, expected):
-        if predicted.ndim == 1:
-            predicted = np.array([predicted])
-        return np.sum(np.square(predicted - expected)) / predicted.shape[1]
-
-    def derivative_mean_square_error(self, predicted, expected):
-        return predicted - expected
-
 
     def print_shapes(self):
         for layer in range(0, len(self.layers)):
@@ -97,148 +74,77 @@ class NeuralNetwork:
                 print(self.layers[layer].bias.shape)
                 # print(self.layers[layer].dot_value.shape)
 
-    def compute_weight_derivative(self, neuron, Y, X):
-        if neuron.neuron_output <= 0:
-            result = 0
-        else:
-        # print(np.shape(y_pred))
-            result = 2 * np.mean(np.dot(neuron.neuron_output - Y[:, 0], neuron.inputs.transpose()), axis = 0)
-        return result
+    def feed_forward(self, layers):
+        for i, layer in enumerate(layers):
+            if (i != 0):
+                print("feed forward")
+                # print(np.dot(np.array([layer.bias]).T, np.ones([1, self.mini_batch_size])))
+                # print(".")
 
-    def compute_bias_derivative(self, neuron, Y):
-        # if y_pred <= 0:
-        #     result = 0
-        # else:
-        result = 2 * np.mean(neuron.neuron_output - Y[:, 0], axis = 0)
-        return result
+                layer.dot_value = np.dot(layer.weights, self.layers[i - 1].neurons) + np.dot(np.array([layer.bias]).T, np.ones([1, self.mini_batch_size]))
+                layer.dot_value = layer.dot_value.astype(float)
+                if(i == 2):
+                    layer.neurons = self.sigmoid(layer.dot_value)
+                elif (i == 1):
+                    layer.neurons = self.relu(layer.dot_value)
+                else:
+                    layer.neurons = self.softmax(layer.dot_value)
+    
+    def y_to_dual(self, Y):
+        Y_output = []
+        for z in range(len(Y)):
+            if Y[z] == 0:
+                b = 1
+            else:
+                b = 0
+            Y_output.append([Y[z], b])
+        return np.array(Y_output).T
 
-    def fit(self, X_train, Y_train):
+    def back_prop(self, Y):
+        Y_output = self.y_to_dual(Y)
+        print(Y_output, "wsh",  self.layers[-1].neurons)
+        error =  Y_output - self.layers[-1].neurons
+        slope = self.derivative_softmax(self.layers[-1].neurons)
+        d_layer = np.array(error * slope, dtype=np.float64) 
+        # print("input = ", self.layers[-2].neurons.T)
+        print("neurons", self.layers[-1].neurons)
+        print("Y_output = ", Y_output)
+        print("error =", d_layer)
+        # print(".")
+        # print(self.layers[-1].weights)
+        # print("bias =", self.layers[-1].bias)
+        print(self.layers[-1].weights.dtype)
+        print(np.dot(d_layer, self.layers[-2].neurons.T).shape)
+        self.layers[-1].weights -= self.eta * np.dot(d_layer, self.layers[-2].neurons.T)
+        self.layers[-1].bias -= self.eta * np.mean(d_layer, axis = 1)
 
-        print("init")
-        for i in range(self.layers[0].n_neurons):
-            self.layers[0].neurons.append(X_train[:, i])
-        self.layers[0].neurons = np.array(self.layers[0].neurons)
-        # print(self.layers[0].neurons.shape)
-        # print(X_train.shape[0])
-        for i in range(1, 4):
-            self.layers[i].neurons = np.zeros([self.layers[i].n_neurons, X_train.shape[0]])
-            print(self.layers[i-1].neurons.shape, self.layers[i].weights.shape )
-        # print(self.layers[3].neurons.shape)
-# pass
-        # self.print_shapes()
-        Y_train = np.array([my_dict[value] for value in Y_train])
-        Y_train = np.expand_dims(Y_train, axis=0)
-        # print("neurons = ", self.layers[0].neurons.T)
-        n = self.layers[0].neurons.shape[1]
-        mini_batch_size = 20
-        X_train = X_train.T
-        X = X_train
-        YY = Y_train
-        self.print_shapes()
-        for epoch in range(self.epochs):
-            print("EPOCH = ", epoch)
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-            x = np.arange(n)
-            np.random.shuffle(X_train)
-            X_train = X_train[:, x]
-            Y_train = Y_train[:, x]
-            # random.shuffle(self.layers[0].neurons)
-            mini_batches = [
-                X_train[:, k:k+mini_batch_size]
-                for k in np.arange(0, n, mini_batch_size)]
-            Y_trains = [
-                Y_train[:, k:k+mini_batch_size]
-                for k in np.arange(0, n, mini_batch_size)]
-            for mini_batch, Y in zip(mini_batches, Y_trains):
-                self.layers[0].neurons = mini_batch
-                # see with end of batches
-                if mini_batch.shape[1] == 7:
-                    break
-                for i, layer in enumerate(self.layers):
-                    if (i != 0):
-                        self.layers[i].nabla_b = [np.zeros(b.shape) for b in self.layers[i].bias]                #Initialize bias matrix with 0's
-                        self.layers[i].nabla_w = [np.zeros(w.shape) for w in self.layers[i].weights]               #Initialize weights matrix with 0's
-                        layer.dot_value = np.zeros([mini_batch_size,layer.weights.shape[0]])
-                        # print("i ========",i)
-                        # print(layer.bias)
-                        # print(np.dot(layer.weights, self.layers[i - 1].neurons).shape)
-                        # self.print_shapes()
-                        layer.dot_value = np.dot(layer.weights, self.layers[i - 1].neurons) + np.dot(np.array([layer.bias]).T, np.ones([1, mini_batch_size]))
-                        layer.dot_value = layer.dot_value.astype(float)
-                        if (i != 3):
-                            layer.neurons = self.relu(layer.dot_value)
-                        else:
-                            # print(layer.dot_value.shape)
-                            layer.neurons = self.softmax(layer.dot_value)
-                            # print(layer.neurons.shape)
-                        # print(layer.neurons)
-                Y_output = []
-                # print(Y.shape)
-                # print(Y[0])
-                for z in range(Y.shape[1]):
-                    # print(z)
-                    if Y[0][z] == 0:
-                        b = 1
-                    else:
-                        b = 0
-                    Y_output.append([Y[0][z], b])
-                Y_output = np.array(Y_output).T
-                error = Y_output - self.layers[-1].neurons
+        # print(self.layers[-1].weights)
+        # print("bias =", self.layers[-1].bias)
+        
+        for layer in range(len(self.layers) - 2, 0, -1):
+            if(layer == 2):
+                slope = self.derivative_sigmoid(self.layers[layer].dot_value)
+            else:
+                slope = self.derivative_relu(self.layers[layer].dot_value)
+            error = np.dot(self.layers[layer + 1].weights.T, d_layer)
+            d_layer = np.array(error * slope, dtype=np.float64)
+            self.layers[layer - 1].neurons = np.array(self.layers[layer - 1].neurons, dtype=np.float64)
+            self.layers[layer].weights -= self.eta * np.dot(d_layer, self.layers[layer - 1].neurons.T)
+            self.layers[layer].bias -= self.eta * np.mean(d_layer, axis = 1)
+    
+    # def gradient_check(self):
 
-                print("feed forward made")
-                # self.print_shapes()
-                # error = np.array([error])
-                # slope = self.derivative_softmax(self.layers[-1].neurons)
-                # slope = 1
-                # print("slope")
-                # print(slope)
-                d_layer = error * self.eta
-                # print("d_layer output", d_layer)
-                # print("weights before")
-                # print(self.layers[-1].weights)
-                # print(d_layer.shape)
-                # print("+")
-                # print(np.dot(d_layer, self.layers[-2].neurons.T))
-                # self.layers[-1].weights = [w - nw for w, nw in zip(self.layers[-1].weights, self.layers[-1].nabla_w)]
-                self.layers[-1].weights = self.layers[-1].weights + np.dot(d_layer, self.layers[-2].neurons.T)
-                # self.print_shapes()
+    def test_back_prop(self):
+        self.feed_forward(self.layers)
+        print(self.layers[-1].neurons)
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
-                self.layers[-1].bias = self.layers[-1].bias - np.sum(d_layer, axis=1)
-                # self.layers[-1].bias = [b - nb for b, nb in zip(self.layers[-1].bias, self.layers[-1].nabla_b)]
-
-                # print("after weights")
-                # print(self.layers[-1].weights)
-                # print(layer.shape)
-                dot_value = np.dot(self.layers[-1].weights, self.layers[-2].neurons) + np.dot(np.array([self.layers[-1].bias]).T, np.ones([1, mini_batch_size]))
-                output = self.softmax(dot_value)
-                # print(dot_value)
-                # print("output")
-                print(output)
-                print("expected")
-                print(Y_output)
-                print("~~~~~~~~~~~~~~~~~~~~~~")
-                
-
-                for layer in range(len(self.layers) - 2, 0, -1):
-                    slope = self.derivative_relu(self.layers[layer].dot_value).T
-                    # print(self.layers[layer + 1].weights)
-                    error = np.dot(self.layers[layer + 1].weights.T, d_layer)
-                    d_layer = error * self.eta
-                    self.layers[layer].weights = self.layers[layer].weights + np.dot(d_layer, self.layers[layer - 1].neurons.T)
-                    self.layers[layer].bias = self.layers[layer].bias - np.sum(d_layer, axis=1)
-
+    def get_results(self, X, Y):
         print("RESULTS")
         self.layers[0].neurons = X
-        # print(self.layers[0].neurons)
-        for i in range(1, len(self.layers)):
-            dot_value = np.dot(self.layers[i].weights, self.layers[i - 1].neurons) + np.dot(np.array([self.layers[i].bias]).T, np.ones([1, X.shape[1]]))
-            dot_value = dot_value.astype(float)
-            if (i != 3):
-                self.layers[i].neurons = self.relu(dot_value)
-            else:
-                self.layers[i].neurons = self.softmax(dot_value)
+        self.mini_batch_size = X.shape[1]
+        self.feed_forward(self.layers)
         output = []
-        print(self.layers[-1].neurons.shape)
         for i in range(self.layers[-1].neurons.shape[1]):
             if(self.layers[-1].neurons[0][i] < self.layers[-1].neurons[1][i]):
                 output.append(0)
@@ -247,12 +153,45 @@ class NeuralNetwork:
             else:
                 output.append(1)
         print(output)
-        print(YY)
+        print(".")
+        print(Y)
+    
+    def fit(self, X_train, Y_train):
+
+        print("init")
+        for i in range(self.layers[0].n_neurons):
+            self.layers[0].neurons.append(X_train[:, i])
+        self.layers[0].neurons = np.array(self.layers[0].neurons)
+        for i in range(1, len(self.layers)):
+            print(i)
+            self.layers[i].neurons = np.zeros([self.layers[i].n_neurons, X_train.shape[0]])
         self.print_shapes()
 
-        
-
-#output layer is shape of number of labels
+        Y_train = np.array([my_dict[value] for value in Y_train])
+        X_train = X_train.T
+        X = X_train
+        Y = Y_train
+        for _ in tqdm(range(self.epochs), desc="Epochs"):
+            x = np.arange(X_train.shape[1])
+            np.random.shuffle(x)
+            X_train = X_train[:, x]
+            Y_train = Y_train[x]
+            mini_batches = [
+                X_train[:, k:k+self.mini_batch_size]
+                for k in np.arange(0, X_train.shape[1], self.mini_batch_size)]
+            Y_trains = [
+                Y_train[k:k+self.mini_batch_size]
+                for k in np.arange(0, X_train.shape[1], self.mini_batch_size)]
+            
+            for mini_batch, y_batch in zip(mini_batches, Y_trains):
+                self.layers[0].neurons = mini_batch
+                # see with end of batches
+                if mini_batch.shape[1] == 27:
+                    break
+                self.feed_forward(self.layers)
+                self.back_prop(y_batch)
+                self.test_back_prop()
+        self.get_results(X, Y)
 
 class Layer(NeuralNetwork):
     def __init__(self, input, n_neurons, act):
@@ -366,9 +305,13 @@ if __name__ == "__main__":
     X_train, Y_train, X_test, Y_test = preprocess_data(data)
     print("WSH ALORS")
 
+    # print(X_test.shape[1])
+    # X_test = np.array([[1, 0, 0, 1], [0, 1, 0, 1]]).T
+    # print(X_test.shape[1])
+    # Y_test = np.array([1, 1, 0, 0])
     input_layer = Layer(X_test, X_test.shape[1], "Sigmoid")
-    hidden_layer1 = Layer(X_test, 18, "Sigmoid")
-    hidden_layer2 = Layer(X_test, 15, "Sigmoid")
+    hidden_layer1 = Layer(X_test, 16, "Sigmoid")
+    hidden_layer2 = Layer(X_test, 16, "Sigmoid")
     output_layer = Layer(X_test, 2, "Sigmoid")
 
     NN = NeuralNetwork()
