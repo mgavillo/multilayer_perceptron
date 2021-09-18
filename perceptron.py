@@ -78,9 +78,6 @@ class NeuralNetwork:
         for i, layer in enumerate(layers):
             if (i != 0):
                 print("feed forward")
-                # print(np.dot(np.array([layer.bias]).T, np.ones([1, self.mini_batch_size])))
-                # print(".")
-
                 layer.dot_value = np.dot(layer.weights, self.layers[i - 1].neurons) + np.dot(np.array([layer.bias]).T, np.ones([1, self.mini_batch_size]))
                 layer.dot_value = layer.dot_value.astype(float)
                 if(i == 2):
@@ -106,7 +103,6 @@ class NeuralNetwork:
         error =  Y_output - self.layers[-1].neurons
         slope = self.derivative_softmax(self.layers[-1].neurons)
         d_layer = np.array(error * slope, dtype=np.float64) 
-        # print("input = ", self.layers[-2].neurons.T)
         print("neurons", self.layers[-1].neurons)
         print("Y_output = ", Y_output)
         print("error =", d_layer)
